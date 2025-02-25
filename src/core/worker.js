@@ -38,6 +38,8 @@ import { clearGlobalCaches } from "./cleanup_helper.js";
 import { incrementalUpdate } from "./writer.js";
 import { PDFWorkerStream } from "./worker_stream.js";
 import { StructTreeRoot } from "./struct_tree.js";
+import {getPrim, getPrimTree} from "./obj_walker.js";
+import {retrieveXref} from "./retrieve_xref.js";
 
 class WorkerTask {
   constructor(name) {
@@ -482,6 +484,18 @@ class WorkerMessageHandler {
       return pdfManager.requestLoadedStream().then(function (stream) {
         return stream.bytes;
       });
+    });
+
+    handler.on("GetPrimitiveByPath", function (path_str) {
+      return getPrim(path_str, pdfManager.pdfDocument);
+    });
+
+    handler.on("GetXRefEntries", function (data) {
+      return retrieveXref(pdfManager.pdfDocument);
+    });
+
+    handler.on("GetPrimTree", function (request) {
+      return getPrimTree(request, pdfManager.pdfDocument);
     });
 
     handler.on("GetAnnotations", function ({ pageIndex, intent }) {

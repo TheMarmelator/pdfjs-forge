@@ -1101,6 +1101,26 @@ class PDFDocumentProxy {
   }
 
   /**
+   * @returns {Promise<PrimitiveModel>} A promise that is resolved to a view of a primitive inside the document.
+   */
+  getPrimitiveByPath(path) {
+    return this._transport.getPrimitiveByPath(path);
+  }
+  /**
+   * @returns {Promise<TreeViewModel>} A promise that is resolved to a tree view of a primitive inside the document.
+   */
+  getPrimitiveTree(request) {
+    return this._transport.getPrimitiveTree(request);
+  }
+
+  /**
+   * @returns {Promise<XRefTable>} A promise that is resolved to a view of the Cross-Reference Table.
+   */
+  getXRefEntries() {
+    return this._transport.getXRefEntries();
+  }
+
+  /**
    * Cleans up resources allocated by the document on both the main and worker
    * threads.
    *
@@ -2907,6 +2927,19 @@ class WorkerTransport {
   getData() {
     return this.messageHandler.sendWithPromise("GetData", null);
   }
+
+  getPrimitiveByPath(path) {
+    return this.messageHandler.sendWithPromise("GetPrimitiveByPath", path);
+  }
+
+  getPrimitiveTree(request) {
+    return this.messageHandler.sendWithPromise("GetPrimTree", request);
+  }
+
+  getXrefEntries() {
+    return this.messageHandler.sendWithPromise("GetXRefEntries", null);
+  }
+
 
   saveDocument() {
     if (this.annotationStorage.size <= 0) {
