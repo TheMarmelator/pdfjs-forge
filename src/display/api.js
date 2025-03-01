@@ -17,6 +17,20 @@
  * @module pdfjsLib
  */
 
+import { DOMCMapReaderFactory } from "display-cmap_reader_factory";
+import { PDFFetchStream } from "display-fetch_stream";
+import { PDFNetworkStream } from "display-network";
+import { PDFNodeStream } from "display-node_stream";
+import {
+  NodeCanvasFactory,
+  NodeCMapReaderFactory,
+  NodeFilterFactory,
+  NodeStandardFontDataFactory,
+  NodeWasmFactory,
+} from "display-node_utils";
+import { DOMStandardFontDataFactory } from "display-standard_fontdata_factory";
+import { DOMWasmFactory } from "display-wasm_factory";
+import { MessageHandler, wrapReason } from "../shared/message_handler.js";
 import {
   AbortException,
   AnnotationMode,
@@ -37,7 +51,8 @@ import {
   PrintAnnotationStorage,
   SerializableEmpty,
 } from "./annotation_storage.js";
-import { FontFaceObject, FontLoader } from "./font_loader.js";
+import { CanvasGraphics } from "./canvas.js";
+import { DOMCanvasFactory } from "./canvas_factory.js";
 import {
   isDataScheme,
   isValidFetchUrl,
@@ -45,28 +60,13 @@ import {
   RenderingCancelledException,
   StatTimer,
 } from "./display_utils.js";
-import { MessageHandler, wrapReason } from "../shared/message_handler.js";
-import {
-  NodeCanvasFactory,
-  NodeCMapReaderFactory,
-  NodeFilterFactory,
-  NodeStandardFontDataFactory,
-  NodeWasmFactory,
-} from "display-node_utils";
-import { CanvasGraphics } from "./canvas.js";
-import { DOMCanvasFactory } from "./canvas_factory.js";
-import { DOMCMapReaderFactory } from "display-cmap_reader_factory";
 import { DOMFilterFactory } from "./filter_factory.js";
-import { DOMStandardFontDataFactory } from "display-standard_fontdata_factory";
-import { DOMWasmFactory } from "display-wasm_factory";
-import { GlobalWorkerOptions } from "./worker_options.js";
+import { FontFaceObject, FontLoader } from "./font_loader.js";
 import { Metadata } from "./metadata.js";
 import { OptionalContentConfig } from "./optional_content_config.js";
-import { PDFDataTransportStream } from "./transport_stream.js";
-import { PDFFetchStream } from "display-fetch_stream";
-import { PDFNetworkStream } from "display-network";
-import { PDFNodeStream } from "display-node_stream";
 import { TextLayer } from "./text_layer.js";
+import { PDFDataTransportStream } from "./transport_stream.js";
+import { GlobalWorkerOptions } from "./worker_options.js";
 import { XfaText } from "./xfa_text.js";
 
 const DEFAULT_RANGE_CHUNK_SIZE = 65536; // 2^16 = 65536
@@ -1101,23 +1101,43 @@ class PDFDocumentProxy {
   }
 
   /**
-   * @returns {Promise<PrimitiveModel>} A promise that is resolved to a view of a primitive inside the document.
+   * @returns {Promise<PrimitiveModel>} A promise that is resolved to a view of
+   * a primitive inside the document.
    */
   getPrimitiveByPath(path) {
     return this._transport.getPrimitiveByPath(path);
   }
+
   /**
-   * @returns {Promise<TreeViewModel>} A promise that is resolved to a tree view of a primitive inside the document.
+   * @returns {Promise<TreeViewModel[]>} A promise that is resolved to a tree
+   * view of a primitive inside the document.
    */
   getPrimitiveTree(request) {
     return this._transport.getPrimitiveTree(request);
   }
 
   /**
-   * @returns {Promise<XRefTable>} A promise that is resolved to a view of the Cross-Reference Table.
+   * @returns {Promise<XRefTable>} A promise that is resolved to a view of
+   * the Cross-Reference Table.
    */
   getXRefEntries() {
-    return this._transport.getXRefEntries();
+    return this._transport.getXrefEntries();
+  }
+
+  /**
+   * @returns {Promise<string>} A promise that is resolved to a string
+   * representing the streams decoded contents.
+   */
+  getStreamAsString(path) {
+    return this._transport.getStreamAsString(path);
+  }
+
+  /**
+   * @returns {Promise<Blob>} A promise that is resolved to a blob representing
+   * the image as png.
+   */
+  getImageByPath(path) {
+    return this._transport.getImageAsBlob(path);
   }
 
   /**
@@ -2936,10 +2956,17 @@ class WorkerTransport {
     return this.messageHandler.sendWithPromise("GetPrimTree", request);
   }
 
+  getImageAsBlob(path) {
+    return this.messageHandler.sendWithPromise("GetImageAsBlob", path);
+  }
+
+  getStreamAsString(path) {
+    return this.messageHandler.sendWithPromise("GetStreamAsString", path);
+  }
+
   getXrefEntries() {
     return this.messageHandler.sendWithPromise("GetXRefEntries", null);
   }
-
 
   saveDocument() {
     if (this.annotationStorage.size <= 0) {

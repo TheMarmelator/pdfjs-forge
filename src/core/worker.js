@@ -31,15 +31,20 @@ import {
   XRefParseException,
 } from "./core_utils.js";
 import { Dict, isDict, Ref, RefSetCache } from "./primitives.js";
+import {
+  getImageAsBlob,
+  getPrim,
+  getPrimTree,
+  getStreamAsString
+} from "./obj_walker.js";
 import { LocalPdfManager, NetworkPdfManager } from "./pdf_manager.js";
 import { MessageHandler, wrapReason } from "../shared/message_handler.js";
 import { AnnotationFactory } from "./annotation.js";
 import { clearGlobalCaches } from "./cleanup_helper.js";
 import { incrementalUpdate } from "./writer.js";
 import { PDFWorkerStream } from "./worker_stream.js";
+import { retrieveXref } from "./retrieve_xref.js";
 import { StructTreeRoot } from "./struct_tree.js";
-import {getPrim, getPrimTree} from "./obj_walker.js";
-import {retrieveXref} from "./retrieve_xref.js";
 
 class WorkerTask {
   constructor(name) {
@@ -496,6 +501,14 @@ class WorkerMessageHandler {
 
     handler.on("GetPrimTree", function (request) {
       return getPrimTree(request, pdfManager.pdfDocument);
+    });
+
+    handler.on("GetImageAsBlob", function (path) {
+      return getImageAsBlob(path, pdfManager.pdfDocument);
+    });
+
+    handler.on("GetStreamAsString", function (path) {
+      return getStreamAsString(path, pdfManager.pdfDocument);
     });
 
     handler.on("GetAnnotations", function ({ pageIndex, intent }) {
