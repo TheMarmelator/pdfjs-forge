@@ -64,49 +64,37 @@ class Parser {
     xref,
     allowStreams = false,
     recoveryMode = false,
-    trackRanges = true,
   }) {
     this.lexer = lexer;
     this.xref = xref;
     this.allowStreams = allowStreams;
     this.recoveryMode = recoveryMode;
-    this.withRange = trackRanges;
     this.imageCache = Object.create(null);
     this._imageId = 0;
     this.refill();
   }
 
   refill() {
-    if (this.withRange) {
-      const [buf1, start1, end1] = this.lexer.getObjWithRange();
-      const [buf2, start2, end2] = this.lexer.getObjWithRange();
-      this.buf1 = buf1;
-      this.range1 = [start1, end1];
-      this.buf2 = buf2;
-      this.range2 = [start2, end2];
-    } else {
-      this.buf1 = this.lexer.getObj();
-      this.buf2 = this.lexer.getObj();
-    }
+    const [buf1, start1, end1] = this.lexer.getObj(true);
+    const [buf2, start2, end2] = this.lexer.getObj(true);
+    this.buf1 = buf1;
+    this.range1 = [start1, end1];
+    this.buf2 = buf2;
+    this.range2 = [start2, end2];
   }
 
   shift() {
     if (this.buf2 instanceof Cmd && this.buf2.cmd === "ID") {
       this.buf1 = this.buf2;
       this.buf2 = null;
-      if (this.withRange) {
-        this.range1 = this.range2;
-        this.range2 = null;
-      }
-    } else if (this.withRange) {
-      this.buf1 = this.buf2;
       this.range1 = this.range2;
-      const [buf2, start2, end2] = this.lexer.getObjWithRange();
-      this.buf2 = buf2;
-      this.range2 = [start2, end2];
+      this.range2 = null;
     } else {
       this.buf1 = this.buf2;
-      this.buf2 = this.lexer.getObj();
+      this.range1 = this.range2;
+      const [buf2, start2, end2] = this.lexer.getObj(true);
+      this.buf2 = buf2;
+      this.range2 = [start2, end2];
     }
   }
 
@@ -1248,7 +1236,7 @@ class Lexer {
     return [obj, start, end];
   }
 
-  getObj() {
+  getObj(withRange = false) {
     // Skip whitespace and comments.
     let comment = false;
     let ch = this.currentChar;
@@ -1267,7 +1255,16 @@ class Lexer {
       }
       ch = this.nextChar();
     }
+    const start = this.stream.pos - 1;
+    const obj = this.extracted(ch);
+    const end = this.stream.pos - 1;
+    if (withRange) {
+      return [start, obj, end];
+    }
+    return obj;
+  }
 
+  extracted(ch) {
     // Start reading a token.
     switch (ch | 0) {
       case 0x30: // '0'
