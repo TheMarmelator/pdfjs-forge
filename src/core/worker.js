@@ -503,7 +503,7 @@ class WorkerMessageHandler {
       return getPrimTree(request, pdfManager.pdfDocument);
     });
 
-    handler.on("GetImageAsBlob", function (path) {
+    handler.on("GetImageData", function (path) {
       return getImageAsBlob(path, pdfManager.pdfDocument);
     });
 

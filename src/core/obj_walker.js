@@ -47,8 +47,7 @@ async function getImageAsBlob(path, doc) {
     pdfFunctionFactory,
     localColorSpaceCache: new LocalColorSpaceCache(),
   });
-  const imageData = await pdfImage.createImageData(true, false);
-  return new Blob([imageData.data], { type: "image/png" });
+  return pdfImage.createImageData(true, false);
 }
 
 async function getPrimitive(path, doc) {
@@ -254,6 +253,8 @@ function toType(prim) {
     return ["String", "-"];
   } else if (isRef(prim)) {
     return ["Reference", "-"];
+  } else if (prim === null) {
+    return ["Null", "-"];
   }
   throw new Error("Unknown prim");
 }
@@ -305,6 +306,8 @@ function primToString(prim) {
     return prim;
   } else if (isRef(prim)) {
     return "XRef(" + prim.num + ", " + prim.gen + ")";
+  } else if (prim === null) {
+    return "Null";
   }
   throw new Error("Unknown prim");
 }
@@ -376,5 +379,6 @@ export {
   getPrimTree,
   getStreamAsString,
   PrimitiveModel,
+  toType,
   TreeViewModel,
 };

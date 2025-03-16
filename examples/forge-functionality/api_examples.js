@@ -24,8 +24,9 @@ const loadingTask = getDocument({
 try {
   const pdfDocument = await loadingTask.promise;
   console.log("# PDF document loaded.");
-  const table = await pdfDocument.getStreamAsString("/Page2/Contents/0/Data");
-  console.log(table);
+  const page = await pdfDocument.getPage(1);
+  const opList = await page.getOperatorList();
+  console.log(opList);
 } catch (e) {
   console.error(e);
 }

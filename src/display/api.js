@@ -1133,11 +1133,11 @@ class PDFDocumentProxy {
   }
 
   /**
-   * @returns {Promise<Blob>} A promise that is resolved to a blob representing
-   * the image as png.
+   * @returns {Promise<ImageData>} A promise that is resolved to ImageData.
+   * Throws an Error if the path does not lead to an image!
    */
-  getImageByPath(path) {
-    return this._transport.getImageAsBlob(path);
+  getImageDataByPath(path) {
+    return this._transport.getImageDataByPath(path);
   }
 
   /**
@@ -1705,6 +1705,7 @@ class PDFPageProxy {
       intentState.operatorList = {
         fnArray: [],
         argsArray: [],
+        rangeArray: [],
         lastChunk: false,
         separateAnnots: null,
       };
@@ -1882,6 +1883,11 @@ class PDFPageProxy {
     for (let i = 0, ii = operatorListChunk.length; i < ii; i++) {
       intentState.operatorList.fnArray.push(operatorListChunk.fnArray[i]);
       intentState.operatorList.argsArray.push(operatorListChunk.argsArray[i]);
+      if (intentState.operatorList.rangeArray) {
+        intentState.operatorList.rangeArray.push(
+          operatorListChunk.rangeArray[i]
+        );
+      }
     }
     intentState.operatorList.lastChunk = operatorListChunk.lastChunk;
     intentState.operatorList.separateAnnots = operatorListChunk.separateAnnots;
@@ -2956,8 +2962,8 @@ class WorkerTransport {
     return this.messageHandler.sendWithPromise("GetPrimTree", request);
   }
 
-  getImageAsBlob(path) {
-    return this.messageHandler.sendWithPromise("GetImageAsBlob", path);
+  getImageDataByPath(path) {
+    return this.messageHandler.sendWithPromise("GetImageData", path);
   }
 
   getStreamAsString(path) {

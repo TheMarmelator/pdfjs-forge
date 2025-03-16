@@ -1,9 +1,13 @@
+import { EvaluatorPreprocessor } from "../../src/core/evaluator.js";
 import {
   getImageAsBlob,
   getPrim,
+  getPrimitive,
   getPrimTree,
   getStreamAsString,
 } from "../../src/core/obj_walker.js";
+import { Lexer, Parser } from "../../src/core/parser.js";
+import { EOF } from "../../src/core/primitives.js";
 import fs from "fs";
 import { PDFDocument } from "../../src/core/document.js";
 import { Stream } from "../../src/core/stream.js";
@@ -32,12 +36,58 @@ fs.readFile(filePath, (err, data) => {
   }
 });
 
+function bytesToString(bytes) {
+  let string = "";
+  for (let i = 0; i < bytes.length; i++) {
+    string += String.fromCharCode(bytes[i]);
+  }
+  return string;
+}
+
 async function parse(doc) {
+  const path = "/Page2/Contents/2";
+  let [stream] = await getPrimitive(path, doc);
+  const lexer = new Lexer(stream);
+  const parser = new Parser({ lexer, xref: doc.xref, trackRanges: true });
+  const objs = [];
+  let [obj, start, end] = parser.getObjWithRange();
+  while (obj !== EOF) {
+    if (obj.cmd) {
+      objs.push([obj.cmd, start, end]);
+    } else {
+      objs.push([obj, start, end]);
+    }
+    [obj, start, end] = parser.getObjWithRange();
+  }
+  [stream] = await getPrimitive(path, doc);
+  const bytes = stream.getBytes();
+  const classes = new Set();
+  for (const o of objs) {
+    console.log(o[0].constructor.name);
+    classes.add(o[0].constructor.name);
+    const lexemmeBytes = bytes.slice(o[1], o[2]);
+    console.log(bytesToString(lexemmeBytes));
+  }
+  console.log("unique classes", classes);
+  [stream] = await getPrimitive(path, doc);
+  const preprocessor = new EvaluatorPreprocessor(stream, doc.xref);
+  const operation = {};
+  operation.args = null;
+  while (preprocessor.read(operation)) {
+    const args = operation.args;
+    const fn = operation.fn;
+    const range = operation.range;
+    const op = bytesToString(bytes.slice(range[0], range[1]));
+    console.log(args, fn);
+    console.log(`${range[0]}------------------------------------`);
+    console.log(op);
+    console.log(`${range[1]}------------------------------------`);
+  }
   // console.time("xref");
   // let table = await retrieveXref(doc);
   // console.timeEnd("xref");
   // console.time("get prim");
-  // const prim = await getPrim("/Page2/Resources/XObject/Im0/Length", doc);
+  // const prim = await getPrim("/Trailer/Root/Names/Dests/Names/1", doc);
   // console.timeEnd("get prim");
   // console.log(prim);
   // const request = {
@@ -55,20 +105,40 @@ async function parse(doc) {
   // const tree = await getPrimTree([request], doc);
   // console.timeEnd("get tree");
   // logTree(tree);
-  console.time("string");
-  const string = await getStreamAsString("/Page2/Contents/0/Data", doc);
-  console.timeEnd("string");
-  console.log(string);
-  // const handler = { send: undefined };
+  // console.time("string");
+  // const string = await getStreamAsString("/Page2/Contents/0/Data", doc);
+  // console.timeEnd("string");
+  // console.log(string);
   // console.time("image");
   // // const image = await getStreamAsImage("/Page2/Contents/2/Data", doc);
-  // const image = await getImageAsBlob(
+  // const blob = await getImageAsBlob(
   //   "/Page2/Resources/XObject/Im0/Data",
-  //   doc,
-  //   handler
+  //   doc
   // );
   // console.timeEnd("image");
-  // console.log(image);
+  // console.log(blob);
+  // saveBlobToFile(blob, "image.png");
+}
+
+async function saveBlobToFile(blob, imagePath) {
+  const buffer = await blobToBuffer(blob);
+
+  fs.writeFile(imagePath, buffer, err => {
+    if (err) {
+      console.error("Error saving file:", err);
+    } else {
+      console.log("File saved successfully!");
+    }
+  });
+}
+
+function blobToBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(Buffer.from(reader.result));
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(blob);
+  });
 }
 
 function logTree(tree) {

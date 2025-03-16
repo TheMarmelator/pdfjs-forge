@@ -59,26 +59,51 @@ function getInlineImageCacheKey(bytes) {
 }
 
 class Parser {
-  constructor({ lexer, xref, allowStreams = false, recoveryMode = false }) {
+  constructor({
+    lexer,
+    xref,
+    allowStreams = false,
+    recoveryMode = false,
+    trackRanges = true,
+  }) {
     this.lexer = lexer;
     this.xref = xref;
     this.allowStreams = allowStreams;
     this.recoveryMode = recoveryMode;
-
+    this.withRange = trackRanges;
     this.imageCache = Object.create(null);
     this._imageId = 0;
     this.refill();
   }
 
   refill() {
-    this.buf1 = this.lexer.getObj();
-    this.buf2 = this.lexer.getObj();
+    if (this.withRange) {
+      const [buf1, start1, end1] = this.lexer.getObjWithRange();
+      const [buf2, start2, end2] = this.lexer.getObjWithRange();
+      this.buf1 = buf1;
+      this.range1 = [start1, end1];
+      this.buf2 = buf2;
+      this.range2 = [start2, end2];
+    } else {
+      this.buf1 = this.lexer.getObj();
+      this.buf2 = this.lexer.getObj();
+    }
   }
 
   shift() {
     if (this.buf2 instanceof Cmd && this.buf2.cmd === "ID") {
       this.buf1 = this.buf2;
       this.buf2 = null;
+      if (this.withRange) {
+        this.range1 = this.range2;
+        this.range2 = null;
+      }
+    } else if (this.withRange) {
+      this.buf1 = this.buf2;
+      this.range1 = this.range2;
+      const [buf2, start2, end2] = this.lexer.getObjWithRange();
+      this.buf2 = buf2;
+      this.range2 = [start2, end2];
     } else {
       this.buf1 = this.buf2;
       this.buf2 = this.lexer.getObj();
@@ -97,6 +122,17 @@ class Parser {
       // state and call this.shift() twice to reset the buffers.
       return false;
     }
+  }
+
+  getPosition() {
+    return this.range1 ? this.range1[0] : 0;
+  }
+
+  getObjWithRange(cipherTransform = null) {
+    const start = this.range1[0];
+    const obj = this.getObj(cipherTransform);
+    const end = this.range1[0];
+    return [obj, start, end];
   }
 
   getObj(cipherTransform = null) {
@@ -1202,6 +1238,14 @@ class Lexer {
       strBuf.push(String.fromCharCode(firstDigit << 4));
     }
     return strBuf.join("");
+  }
+
+  getObjWithRange() {
+    // at the start of getObj() the stream has stepped beyond currentChar by one
+    const start = this.stream.pos - 1;
+    const obj = this.getObj();
+    const end = this.stream.pos;
+    return [obj, start, end];
   }
 
   getObj() {

@@ -1,8 +1,8 @@
-import {Dict, Ref} from "./primitives.js";
-import {BaseStream} from "./base_stream.js";
+import { Ref } from "./primitives.js";
+import { toType } from "./obj_walker.js";
 
 async function retrieveXref(doc) {
-  let result = new XRefTable(doc.xref.entries.length);
+  const result = new XRefTable(doc.xref.entries.length);
   for (let i = 0; i < doc.xref.entries.length; i++) {
     result.entries.push(to_model(i, doc.xref.entries[i], doc.xref));
   }
@@ -13,13 +13,8 @@ function to_model(i, entry, xref) {
   if (entry.free) {
     return new XRefEntry("Free", i, entry.gen, entry.offset);
   }
-  const fetched = xref.fetch(new Ref(i, entry.gen));
-  let type = "Unknown";
-  if (fetched instanceof Dict) {
-    type = "Dictionary";
-  } else if (fetched instanceof BaseStream) {
-    type = "Stream";
-  }
+  const fetched = xref.fetch(Ref.get(i, entry.gen));
+  const [type] = toType(fetched);
   return new XRefEntry(type, i, entry.gen, entry.offset);
 }
 
@@ -39,4 +34,4 @@ class XRefEntry {
   }
 }
 
-export { XRefEntry, XRefTable, retrieveXref };
+export { retrieveXref, XRefEntry, XRefTable };

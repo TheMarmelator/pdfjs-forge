@@ -177,11 +177,17 @@ function normalizeBlendMode(value, parsingArray = false) {
   return "source-over";
 }
 
-function addLocallyCachedImageOps(opList, data) {
+function addLocallyCachedImageOps(opList, data, range) {
   if (data.objId) {
     opList.addDependency(data.objId);
   }
-  opList.addImageOps(data.fn, data.args, data.optionalContent, data.hasMask);
+  opList.addImageOps(
+    data.fn,
+    data.args,
+    range,
+    data.optionalContent,
+    data.hasMask
+  );
 
   if (data.fn === OPS.paintImageMaskXObject && data.args[0]?.count > 0) {
     data.args[0].count++;
@@ -455,7 +461,8 @@ class PartialEvaluator {
     operatorList,
     task,
     initialState,
-    localColorSpaceCache
+    localColorSpaceCache,
+    range = null
   ) {
     const dict = xobj.dict;
     const matrix = lookupMatrix(dict.getArray("Matrix"), null);
@@ -469,7 +476,11 @@ class PartialEvaluator {
       );
     }
     if (optionalContent !== undefined) {
-      operatorList.addOp(OPS.beginMarkedContentProps, ["OC", optionalContent]);
+      operatorList.addOp(
+        OPS.beginMarkedContentProps,
+        ["OC", optionalContent],
+        range
+      );
     }
     const group = dict.get("Group");
     if (group) {
@@ -511,14 +522,14 @@ class PartialEvaluator {
         smask.backdrop = colorSpace.getRgb(smask.backdrop, 0);
       }
 
-      operatorList.addOp(OPS.beginGroup, [groupOptions]);
+      operatorList.addOp(OPS.beginGroup, [groupOptions], range);
     }
 
     // If it's a group, a new canvas will be created that is the size of the
     // bounding box and translated to the correct position so we don't need to
     // apply the bounding box to it.
     const args = group ? [matrix, null] : [matrix, bbox];
-    operatorList.addOp(OPS.paintFormXObjectBegin, args);
+    operatorList.addOp(OPS.paintFormXObjectBegin, args, range);
 
     await this.getOperatorList({
       stream: xobj,
@@ -527,14 +538,14 @@ class PartialEvaluator {
       operatorList,
       initialState,
     });
-    operatorList.addOp(OPS.paintFormXObjectEnd, []);
+    operatorList.addOp(OPS.paintFormXObjectEnd, [], range);
 
     if (group) {
-      operatorList.addOp(OPS.endGroup, [groupOptions]);
+      operatorList.addOp(OPS.endGroup, [groupOptions], range);
     }
 
     if (optionalContent !== undefined) {
-      operatorList.addOp(OPS.endMarkedContent, []);
+      operatorList.addOp(OPS.endMarkedContent, [], range);
     }
   }
 
@@ -569,6 +580,7 @@ class PartialEvaluator {
     cacheKey,
     localImageCache,
     localColorSpaceCache,
+    range,
   }) {
     const dict = image.dict;
     const imageRef = dict.objId;
@@ -627,6 +639,7 @@ class PartialEvaluator {
         operatorList.addImageOps(
           OPS.paintImageMaskXObject,
           args,
+          range,
           optionalContent
         );
 
@@ -899,7 +912,8 @@ class PartialEvaluator {
     operatorList,
     task,
     stateManager,
-    localColorSpaceCache
+    localColorSpaceCache,
+    range
   ) {
     const smaskContent = smask.get("G");
     const smaskOptions = {
@@ -929,7 +943,8 @@ class PartialEvaluator {
       operatorList,
       task,
       stateManager.state.clone(),
-      localColorSpaceCache
+      localColorSpaceCache,
+      range
     );
   }
 
@@ -1013,7 +1028,7 @@ class PartialEvaluator {
         // Add the dependencies to the parent operator list so they are
         // resolved before the sub operator list is executed synchronously.
         operatorList.addDependencies(tilingOpList.dependencies);
-        operatorList.addOp(fn, tilingPatternIR);
+        operatorList.addOp(fn, tilingPatternIR, range);
 
         if (patternDict.objId) {
           localTilingPatternCache.set(/* name = */ null, patternDict.objId, {
@@ -1124,6 +1139,7 @@ class PartialEvaluator {
     stateManager,
     localGStateCache,
     localColorSpaceCache,
+    range,
   }) {
     const gStateRef = gState.objId;
     let isSimpleGState = true;
@@ -1180,7 +1196,8 @@ class PartialEvaluator {
                 operatorList,
                 task,
                 stateManager,
-                localColorSpaceCache
+                localColorSpaceCache,
+                range
               )
             );
             gStateObj.push([key, true]);
@@ -1218,7 +1235,7 @@ class PartialEvaluator {
     await promise;
 
     if (gStateObj.length > 0) {
-      operatorList.addOp(OPS.setGState, [gStateObj]);
+      operatorList.addOp(OPS.setGState, [gStateObj], range);
     }
 
     if (isSimpleGState) {
@@ -1387,7 +1404,7 @@ class PartialEvaluator {
     return promise;
   }
 
-  buildPath(operatorList, fn, args, parsingText = false) {
+  buildPath(operatorList, fn, args, parsingText = false, range = null) {
     const lastIndex = operatorList.length - 1;
     if (!args) {
       args = [];
@@ -1405,7 +1422,7 @@ class PartialEvaluator {
       // *extremely* rare that shouldn't really matter much in practice.
       if (parsingText) {
         warn(`Encountered path operator "${fn}" inside of a text object.`);
-        operatorList.addOp(OPS.save, null);
+        operatorList.addOp(OPS.save, null, range);
       }
 
       let minMax;
@@ -1428,16 +1445,19 @@ class PartialEvaluator {
           minMax = [Infinity, Infinity, -Infinity, -Infinity];
           break;
       }
-      operatorList.addOp(OPS.constructPath, [[fn], args, minMax]);
+      operatorList.addOp(OPS.constructPath, [[fn], args, minMax], range);
 
       if (parsingText) {
-        operatorList.addOp(OPS.restore, null);
+        operatorList.addOp(OPS.restore, null, range);
       }
     } else {
       const opArgs = operatorList.argsArray[lastIndex];
       opArgs[0].push(fn);
       opArgs[1].push(...args);
       const minMax = opArgs[2];
+
+      const opRange = operatorList.rangeArray[lastIndex];
+      opRange[1] = range[1];
 
       // Compute min/max in the worker instead of the main thread.
       // If the current matrix (when drawing) is a scaling one
@@ -1543,7 +1563,8 @@ class PartialEvaluator {
     task,
     localColorSpaceCache,
     localTilingPatternCache,
-    localShadingPatternCache
+    localShadingPatternCache,
+    range
   ) {
     // compile tiling patterns
     const patternName = args.pop();
@@ -1562,7 +1583,7 @@ class PartialEvaluator {
             localTilingPattern.dict,
             color
           );
-          operatorList.addOp(fn, tilingPatternIR);
+          operatorList.addOp(fn, tilingPatternIR, range);
           return undefined;
         } catch {
           // Handle any errors during normal TilingPattern parsing.
@@ -1596,7 +1617,7 @@ class PartialEvaluator {
           });
           if (objId) {
             const matrix = lookupMatrix(dict.getArray("Matrix"), null);
-            operatorList.addOp(fn, ["Shading", objId, matrix]);
+            operatorList.addOp(fn, ["Shading", objId, matrix], range);
           }
           return undefined;
         }
@@ -1771,6 +1792,7 @@ class PartialEvaluator {
         }
         let args = operation.args;
         let fn = operation.fn;
+        const range = operation.range;
 
         switch (fn | 0) {
           case OPS.paintXObject:
@@ -1781,7 +1803,7 @@ class PartialEvaluator {
             if (isValidName) {
               const localImage = localImageCache.getByName(name);
               if (localImage) {
-                addLocallyCachedImageOps(operatorList, localImage);
+                addLocallyCachedImageOps(operatorList, localImage, range);
                 args = null;
                 continue;
               }
@@ -1859,6 +1881,7 @@ class PartialEvaluator {
                       cacheKey: name,
                       localImageCache,
                       localColorSpaceCache,
+                      range,
                     })
                     .then(resolveXObject, rejectXObject);
                   return;
@@ -1900,7 +1923,11 @@ class PartialEvaluator {
                 )
                 .then(function (loadedName) {
                   operatorList.addDependency(loadedName);
-                  operatorList.addOp(OPS.setFont, [loadedName, fontSize]);
+                  operatorList.addOp(
+                    OPS.setFont,
+                    [loadedName, fontSize],
+                    range
+                  );
                 })
             );
             return;
@@ -1929,6 +1956,7 @@ class PartialEvaluator {
                 cacheKey,
                 localImageCache,
                 localColorSpaceCache,
+                range,
               })
             );
             return;
@@ -1961,7 +1989,7 @@ class PartialEvaluator {
               self.ensureStateFont(stateManager.state);
               continue;
             }
-            operatorList.addOp(OPS.nextLine);
+            operatorList.addOp(OPS.nextLine, null, range);
             args[0] = self.handleText(args[0], stateManager.state);
             fn = OPS.showText;
             break;
@@ -1970,9 +1998,9 @@ class PartialEvaluator {
               self.ensureStateFont(stateManager.state);
               continue;
             }
-            operatorList.addOp(OPS.nextLine);
-            operatorList.addOp(OPS.setWordSpacing, [args.shift()]);
-            operatorList.addOp(OPS.setCharSpacing, [args.shift()]);
+            operatorList.addOp(OPS.nextLine, null, range);
+            operatorList.addOp(OPS.setWordSpacing, [args.shift()], range);
+            operatorList.addOp(OPS.setCharSpacing, [args.shift()], range);
             args[0] = self.handleText(args[0], stateManager.state);
             fn = OPS.showText;
             break;
@@ -2092,7 +2120,8 @@ class PartialEvaluator {
                   task,
                   localColorSpaceCache,
                   localTilingPatternCache,
-                  localShadingPatternCache
+                  localShadingPatternCache,
+                  range
                 )
               );
               return;
@@ -2124,7 +2153,8 @@ class PartialEvaluator {
                   task,
                   localColorSpaceCache,
                   localTilingPatternCache,
-                  localShadingPatternCache
+                  localShadingPatternCache,
+                  range
                 )
               );
               return;
@@ -2175,7 +2205,7 @@ class PartialEvaluator {
               const localGStateObj = localGStateCache.getByName(name);
               if (localGStateObj) {
                 if (localGStateObj.length > 0) {
-                  operatorList.addOp(OPS.setGState, [localGStateObj]);
+                  operatorList.addOp(OPS.setGState, [localGStateObj], range);
                 }
                 args = null;
                 continue;
@@ -2211,6 +2241,7 @@ class PartialEvaluator {
                     stateManager,
                     localGStateCache,
                     localColorSpaceCache,
+                    range,
                   })
                   .then(resolveGState, rejectGState);
               }).catch(function (reason) {
@@ -2232,7 +2263,7 @@ class PartialEvaluator {
           case OPS.curveTo3:
           case OPS.closePath:
           case OPS.rectangle:
-            self.buildPath(operatorList, fn, args, parsingText);
+            self.buildPath(operatorList, fn, args, parsingText, range);
             continue;
           case OPS.markPoint:
           case OPS.markPointProps:
@@ -2248,7 +2279,11 @@ class PartialEvaluator {
           case OPS.beginMarkedContentProps:
             if (!(args[0] instanceof Name)) {
               warn(`Expected name for beginMarkedContentProps arg0=${args[0]}`);
-              operatorList.addOp(OPS.beginMarkedContentProps, ["OC", null]);
+              operatorList.addOp(
+                OPS.beginMarkedContentProps,
+                ["OC", null],
+                range
+              );
               continue;
             }
             if (args[0].name === "OC") {
@@ -2256,10 +2291,11 @@ class PartialEvaluator {
                 self
                   .parseMarkedContentProps(args[1], resources)
                   .then(data => {
-                    operatorList.addOp(OPS.beginMarkedContentProps, [
-                      "OC",
-                      data,
-                    ]);
+                    operatorList.addOp(
+                      OPS.beginMarkedContentProps,
+                      ["OC", data],
+                      range
+                    );
                   })
                   .catch(reason => {
                     if (reason instanceof AbortException) {
@@ -2269,10 +2305,11 @@ class PartialEvaluator {
                       warn(
                         `getOperatorList - ignoring beginMarkedContentProps: "${reason}".`
                       );
-                      operatorList.addOp(OPS.beginMarkedContentProps, [
-                        "OC",
-                        null,
-                      ]);
+                      operatorList.addOp(
+                        OPS.beginMarkedContentProps,
+                        ["OC", null],
+                        range
+                      );
                       return;
                     }
                     throw reason;
@@ -2305,7 +2342,7 @@ class PartialEvaluator {
               }
             }
         }
-        operatorList.addOp(fn, args);
+        operatorList.addOp(fn, args, range);
       }
       if (stop) {
         next(deferred);
@@ -5101,6 +5138,7 @@ class EvaluatorPreprocessor {
   // avoiding allocations where possible is worthwhile.
   //
   read(operation) {
+    const start = this.parser.getPosition();
     let args = operation.args;
     while (true) {
       const obj = this.parser.getObj();
@@ -5177,6 +5215,8 @@ class EvaluatorPreprocessor {
 
         operation.fn = fn;
         operation.args = args;
+        const end = this.parser.getPosition();
+        operation.range = [start, end];
         return true;
       }
       if (obj === EOF) {

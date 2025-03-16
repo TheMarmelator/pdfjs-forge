@@ -477,9 +477,10 @@ class NullOptimizer {
 
   _optimize() {}
 
-  push(fn, args) {
+  push(fn, args, range) {
     this.queue.fnArray.push(fn);
     this.queue.argsArray.push(args);
+    this.queue.rangeArray.push(range);
     this._optimize();
   }
 
@@ -589,6 +590,7 @@ class OperatorList {
     this._streamSink = streamSink;
     this.fnArray = [];
     this.argsArray = [];
+    this.rangeArray = [];
     this.optimizer =
       streamSink && !(intent & RenderingIntentFlag.OPLIST)
         ? new QueueOptimizer(this)
@@ -620,8 +622,8 @@ class OperatorList {
     return this._totalLength + this.length;
   }
 
-  addOp(fn, args) {
-    this.optimizer.push(fn, args);
+  addOp(fn, args, range = null) {
+    this.optimizer.push(fn, args, range);
     this.weight++;
     if (this._streamSink) {
       if (this.weight >= OperatorList.CHUNK_SIZE) {
@@ -636,7 +638,7 @@ class OperatorList {
     }
   }
 
-  addImageOps(fn, args, optionalContent, hasMask = false) {
+  addImageOps(fn, args, range, optionalContent, hasMask = false) {
     if (hasMask) {
       this.addOp(OPS.save);
       this.addOp(OPS.setGState, [[["SMask", false]]]);
@@ -645,7 +647,7 @@ class OperatorList {
       this.addOp(OPS.beginMarkedContentProps, ["OC", optionalContent]);
     }
 
-    this.addOp(fn, args);
+    this.addOp(fn, args, range);
 
     if (optionalContent !== undefined) {
       this.addOp(OPS.endMarkedContent, []);
@@ -678,7 +680,7 @@ class OperatorList {
       this.dependencies.add(dependency);
     }
     for (let i = 0, ii = opList.length; i < ii; i++) {
-      this.addOp(opList.fnArray[i], opList.argsArray[i]);
+      this.addOp(opList.fnArray[i], opList.argsArray[i], opList.rangeArray[i]);
     }
   }
 
@@ -686,6 +688,7 @@ class OperatorList {
     return {
       fnArray: this.fnArray,
       argsArray: this.argsArray,
+      rangeArray: this.rangeArray,
       length: this.length,
     };
   }
@@ -717,6 +720,7 @@ class OperatorList {
       {
         fnArray: this.fnArray,
         argsArray: this.argsArray,
+        rangeArray: this.rangeArray,
         lastChunk,
         separateAnnots,
         length,
@@ -728,6 +732,7 @@ class OperatorList {
     this.dependencies.clear();
     this.fnArray.length = 0;
     this.argsArray.length = 0;
+    this.rangeArray.length = 0;
     this.weight = 0;
     this.optimizer.reset();
   }
