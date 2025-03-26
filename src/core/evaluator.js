@@ -802,6 +802,7 @@ class PartialEvaluator {
     operatorList.addImageOps(
       OPS.paintImageXObject,
       args,
+      range,
       optionalContent,
       hasMask
     );
@@ -1445,15 +1446,20 @@ class PartialEvaluator {
           minMax = [Infinity, Infinity, -Infinity, -Infinity];
           break;
       }
-      operatorList.addOp(OPS.constructPath, [[fn], args, minMax], range);
+      operatorList.addOp(
+        OPS.constructPath,
+        [[fn], args, minMax, [range[0], range[1]]],
+        range
+      );
 
       if (parsingText) {
-        operatorList.addOp(OPS.restore, null, range);
+        operatorList.addOp(OPS.restore, null);
       }
     } else {
       const opArgs = operatorList.argsArray[lastIndex];
       opArgs[0].push(fn);
       opArgs[1].push(...args);
+      opArgs[3].push(...range);
       const minMax = opArgs[2];
 
       const opRange = operatorList.rangeArray[lastIndex];
@@ -5215,7 +5221,7 @@ class EvaluatorPreprocessor {
 
         operation.fn = fn;
         operation.args = args;
-        const end = this.parser.getPosition();
+        const end = this.parser.getEnd();
         operation.range = [start, end];
         return true;
       }

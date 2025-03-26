@@ -65,7 +65,7 @@ import { Catalog } from "./catalog.js";
 import { clearGlobalCaches } from "./cleanup_helper.js";
 import { DatasetReader } from "./dataset_reader.js";
 import { Linearization } from "./parser.js";
-import { NullStream } from "./stream.js";
+import { NullStream, StringStream } from "./stream.js";
 import { ObjectLoader } from "./object_loader.js";
 import { OperatorList } from "./operator_list.js";
 import { PartialEvaluator } from "./evaluator.js";
@@ -106,6 +106,8 @@ class Page {
     this.evaluatorOptions = pdfManager.evaluatorOptions;
     this.resourcesPromise = null;
     this.xfaFactory = xfaFactory;
+
+    this.updatedContents = null;
 
     const idCounters = {
       obj: 0,
@@ -246,10 +248,19 @@ class Page {
     throw reason;
   }
 
+  setContents(newContents) {
+    this.updatedContents = newContents;
+  }
+
   /**
    * @returns {Promise<BaseStream>}
    */
   getContentStream() {
+    if (this.updatedContents !== null) {
+      return new Promise(resolve => {
+        resolve(new StringStream(this.updatedContents));
+      });
+    }
     return this.pdfManager.ensure(this, "content").then(content => {
       if (content instanceof BaseStream) {
         return content;
@@ -426,8 +437,11 @@ class Page {
     cacheKey,
     annotationStorage = null,
     modifiedIds = null,
+    contentOverride = null,
   }) {
-    const contentStreamPromise = this.getContentStream();
+    const contentStreamPromise = contentOverride
+      ? new StringStream(contentOverride)
+      : this.getContentStream();
     const resourcesPromise = this.loadResources([
       "ColorSpace",
       "ExtGState",

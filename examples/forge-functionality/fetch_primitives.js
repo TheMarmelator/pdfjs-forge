@@ -45,7 +45,7 @@ function bytesToString(bytes) {
 }
 
 async function parse(doc) {
-  const path = "/Page2/Contents/2";
+  const path = "/Page2/Contents/1";
   let [stream] = await getPrimitive(path, doc);
   const lexer = new Lexer(stream);
   const parser = new Parser({ lexer, xref: doc.xref, trackRanges: true });
@@ -63,12 +63,12 @@ async function parse(doc) {
   const bytes = stream.getBytes();
   const classes = new Set();
   for (const o of objs) {
-    console.log(o[0].constructor.name);
+    // console.log(o[0].constructor.name);
     classes.add(o[0].constructor.name);
     const lexemmeBytes = bytes.slice(o[1], o[2]);
-    console.log(bytesToString(lexemmeBytes));
+    // console.log(bytesToString(lexemmeBytes));
   }
-  console.log("unique classes", classes);
+  // console.log("unique classes", classes);
   [stream] = await getPrimitive(path, doc);
   const preprocessor = new EvaluatorPreprocessor(stream, doc.xref);
   const operation = {};
@@ -78,10 +78,10 @@ async function parse(doc) {
     const fn = operation.fn;
     const range = operation.range;
     const op = bytesToString(bytes.slice(range[0], range[1]));
-    console.log(args, fn);
-    console.log(`${range[0]}------------------------------------`);
-    console.log(op);
-    console.log(`${range[1]}------------------------------------`);
+    // console.log(args, fn);
+    // console.log(`----------------- ${range} -------------------`);
+    console.log(`${fn}: ${op}`);
+    // console.log(`---------------------------------------------`);
   }
   // console.time("xref");
   // let table = await retrieveXref(doc);

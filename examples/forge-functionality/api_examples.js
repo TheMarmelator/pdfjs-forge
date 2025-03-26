@@ -11,7 +11,7 @@ const STANDARD_FONT_DATA_URL =
 
 // Loading file from file system into typed array.
 const pdfPath =
-  process.argv[2] || "../../web/compressed.tracemonkey-pldi-09.pdf";
+  process.argv[2] || "C:\\Users\\kj131\\pdf-forge\\test_pdfs\\ISO_32000-2_2020(en).pdf";
 const data = new Uint8Array(fs.readFileSync(pdfPath));
 
 // Load the PDF file.
@@ -21,12 +21,46 @@ const loadingTask = getDocument({
   cMapPacked: CMAP_PACKED,
   standardFontDataUrl: STANDARD_FONT_DATA_URL,
 });
-try {
-  const pdfDocument = await loadingTask.promise;
-  console.log("# PDF document loaded.");
-  const page = await pdfDocument.getPage(1);
+test(loadingTask);
+async function test(loading) {
+  try {
+    const pdfDocument = await loading.promise;
+    console.log("# PDF document loaded.");
+    const page = await pdfDocument.getPage(4);
+    printOpList(page);
+    console.time("contents");
+    const contents = await page.getContents();
+    console.timeEnd("contents");
+    console.time("oplist");
+    const opList = await page.getOperatorList();
+    console.timeEnd("oplist");
+    // console.log(opList);
+    let newContents = "";
+    for (let i = 0; i < 5; i++) {
+      const range = opList.rangeArray[i];
+      if (range) {
+        newContents += contents.slice(range[0], range[1]);
+        newContents += "\n";
+      }
+    }
+    console.log(newContents);
+    await page.updateContents(newContents);
+    await printOpList(page);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function printOpList(page) {
+  const contents = await page.getContents();
   const opList = await page.getOperatorList();
-  console.log(opList);
-} catch (e) {
-  console.error(e);
+  // console.log(opList);
+  const ops = [];
+  for (let i = 0; i < opList.rangeArray.length; i++) {
+    const range = opList.rangeArray[i];
+    if (range) {
+      ops.push(contents.slice(range[0], range[1]));
+    }
+  }
+  console.log(ops.slice(0, 100));
 }

@@ -35,6 +35,7 @@ import {
   AbortException,
   AnnotationMode,
   assert,
+  djb2Hash,
   FeatureTest,
   getVerbosityLevel,
   info,
@@ -1660,6 +1661,37 @@ class PDFPageProxy {
     return renderTask;
   }
 
+  updateContents(newContents) {
+    if (!newContents) {
+      throw new Error("Contents may not be null or undefined");
+    }
+    this._intentStates.clear();
+    return this._transport.updateContents(newContents, this._pageIndex);
+  }
+
+  getContents() {
+    const readableStream = this._transport.streamContents(this._pageIndex);
+
+    return new Promise(function (resolve, reject) {
+      function pump() {
+        reader.read().then(function ({ value, done }) {
+          if (done) {
+            resolve(textContent.text);
+            return;
+          }
+          textContent.text += value;
+          pump();
+        }, reject);
+      }
+
+      const reader = readableStream.getReader();
+      const textContent = {
+        text: "",
+      };
+      pump();
+    });
+  }
+
   /**
    * @param {GetOperatorListParameters} params - Page getOperatorList
    *   parameters.
@@ -1671,6 +1703,7 @@ class PDFPageProxy {
     annotationMode = AnnotationMode.ENABLE,
     printAnnotationStorage = null,
     isEditing = false,
+    contentOverride = null,
   } = {}) {
     if (typeof PDFJSDev !== "undefined" && !PDFJSDev.test("GENERIC")) {
       throw new Error("Not implemented: getOperatorList");
@@ -1688,7 +1721,8 @@ class PDFPageProxy {
       annotationMode,
       printAnnotationStorage,
       isEditing,
-      /* isOpList = */ true
+      /* isOpList = */ true,
+      contentOverride
     );
     let intentState = this._intentStates.get(intentArgs.cacheKey);
     if (!intentState) {
@@ -1910,6 +1944,7 @@ class PDFPageProxy {
     cacheKey,
     annotationStorageSerializable,
     modifiedIds,
+    contentOverride,
   }) {
     if (typeof PDFJSDev === "undefined" || PDFJSDev.test("TESTING")) {
       assert(
@@ -1927,6 +1962,7 @@ class PDFPageProxy {
         cacheKey,
         annotationStorage: map,
         modifiedIds,
+        contentOverride,
       },
       transfer
     );
@@ -2528,7 +2564,8 @@ class WorkerTransport {
     annotationMode = AnnotationMode.ENABLE,
     printAnnotationStorage = null,
     isEditing = false,
-    isOpList = false
+    isOpList = false,
+    contentOverride = null
   ) {
     let renderingIntent = RenderingIntentFlag.DISPLAY; // Default value.
     let annotationStorageSerializable = SerializableEmpty;
@@ -2586,11 +2623,16 @@ class WorkerTransport {
       modifiedIdsHash,
     ];
 
+    if (contentOverride) {
+      cacheKeyBuf.push(djb2Hash(contentOverride));
+    }
+
     return {
       renderingIntent,
       cacheKey: cacheKeyBuf.join("_"),
       annotationStorageSerializable,
       modifiedIds,
+      contentOverride,
     };
   }
 
@@ -2972,6 +3014,23 @@ class WorkerTransport {
 
   getXrefEntries() {
     return this.messageHandler.sendWithPromise("GetXRefEntries", null);
+  }
+
+  streamContents(pageIndex) {
+    return this.messageHandler.sendWithStream("StreamContents", {
+      pageIndex,
+    });
+  }
+
+  /**
+   * @returns {Promise<void>} A promise that is resolved once the contents
+   * are updated.
+   */
+  updateContents(newContents, pageIndex) {
+    return this.messageHandler.sendWithPromise("UpdateContents", {
+      value: newContents,
+      pageIndex,
+    });
   }
 
   saveDocument() {

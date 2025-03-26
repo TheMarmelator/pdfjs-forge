@@ -578,6 +578,16 @@ function objectFromMap(map) {
   return obj;
 }
 
+// fast and easy hash
+function djb2Hash(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) + hash + str.charCodeAt(i);
+    hash &= hash; // Convert to 32-bit integer
+  }
+  return hash >>> 0; // Convert to unsigned
+}
+
 // Checks the endianness of the platform.
 function isLittleEndian() {
   const buffer8 = new Uint8Array(4);
@@ -1136,6 +1146,7 @@ export {
   BASELINE_FACTOR,
   bytesToString,
   createValidAbsoluteUrl,
+  djb2Hash,
   DocumentActionEventType,
   FeatureTest,
   FONT_IDENTITY_MATRIX,

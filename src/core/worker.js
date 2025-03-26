@@ -123,7 +123,7 @@ class WorkerMessageHandler {
     if (apiVersion !== workerVersion) {
       throw new Error(
         `The API version "${apiVersion}" does not match ` +
-          `the Worker version "${workerVersion}".`
+        `the Worker version "${workerVersion}".`
       );
     }
 
@@ -141,8 +141,8 @@ class WorkerMessageHandler {
       if (enumerableProperties.length) {
         throw new Error(
           "The `Array.prototype` contains unexpected enumerable properties: " +
-            enumerableProperties.join(", ") +
-            "; thus breaking e.g. `for...in` iteration of `Array`s."
+          enumerableProperties.join(", ") +
+          "; thus breaking e.g. `for...in` iteration of `Array`s."
         );
       }
     }
@@ -206,15 +206,15 @@ class WorkerMessageHandler {
     }
 
     async function getPdfManager({
-      data,
-      password,
-      disableAutoFetch,
-      rangeChunkSize,
-      length,
-      docBaseUrl,
-      enableXfa,
-      evaluatorOptions,
-    }) {
+                                   data,
+                                   password,
+                                   disableAutoFetch,
+                                   rangeChunkSize,
+                                   length,
+                                   docBaseUrl,
+                                   enableXfa,
+                                   evaluatorOptions,
+                                 }) {
       const pdfManagerArgs = {
         source: null,
         disableAutoFetch,
@@ -242,7 +242,7 @@ class WorkerMessageHandler {
         loaded = 0;
 
       fullRequest.headersReady
-        .then(function () {
+        .then(function() {
           if (!fullRequest.isRangeSupported) {
             return;
           }
@@ -263,13 +263,13 @@ class WorkerMessageHandler {
           pdfManagerCapability.resolve(newPdfManager);
           cancelXHRs = null;
         })
-        .catch(function (reason) {
+        .catch(function(reason) {
           pdfManagerCapability.reject(reason);
           cancelXHRs = null;
         });
 
-      new Promise(function (resolve, reject) {
-        const readChunk = function ({ value, done }) {
+      new Promise(function(resolve, reject) {
+        const readChunk = function({ value, done }) {
           try {
             ensureNotTerminated();
             if (done) {
@@ -314,7 +314,7 @@ class WorkerMessageHandler {
           }
         };
         fullRequest.read().then(readChunk, reject);
-      }).catch(function (e) {
+      }).catch(function(e) {
         pdfManagerCapability.reject(e);
         cancelXHRs = null;
       });
@@ -341,12 +341,12 @@ class WorkerMessageHandler {
 
           handler
             .sendWithPromise("PasswordRequest", ex)
-            .then(function ({ password }) {
+            .then(function({ password }) {
               finishWorkerTask(task);
               pdfManager.updatePassword(password);
               pdfManagerReady();
             })
-            .catch(function () {
+            .catch(function() {
               finishWorkerTask(task);
               handler.send("DocException", ex);
             });
@@ -359,7 +359,7 @@ class WorkerMessageHandler {
       function pdfManagerReady() {
         ensureNotTerminated();
 
-        loadDocument(false).then(onSuccess, function (reason) {
+        loadDocument(false).then(onSuccess, function(reason) {
           ensureNotTerminated();
 
           // Try again with recoveryMode == true
@@ -367,7 +367,7 @@ class WorkerMessageHandler {
             onFailure(reason);
             return;
           }
-          pdfManager.requestLoadedStream().then(function () {
+          pdfManager.requestLoadedStream().then(function() {
             ensureNotTerminated();
 
             loadDocument(true).then(onSuccess, onFailure);
@@ -378,7 +378,7 @@ class WorkerMessageHandler {
       ensureNotTerminated();
 
       getPdfManager(data)
-        .then(function (newPdfManager) {
+        .then(function(newPdfManager) {
           if (terminated) {
             // We were in a process of setting up the manager, but it got
             // terminated in the middle.
@@ -396,14 +396,14 @@ class WorkerMessageHandler {
         .then(pdfManagerReady, onFailure);
     }
 
-    handler.on("GetPage", function (data) {
-      return pdfManager.getPage(data.pageIndex).then(function (page) {
+    handler.on("GetPage", function(data) {
+      return pdfManager.getPage(data.pageIndex).then(function(page) {
         return Promise.all([
           pdfManager.ensure(page, "rotate"),
           pdfManager.ensure(page, "ref"),
           pdfManager.ensure(page, "userUnit"),
           pdfManager.ensure(page, "view"),
-        ]).then(function ([rotate, ref, userUnit, view]) {
+        ]).then(function([rotate, ref, userUnit, view]) {
           return {
             rotate,
             ref,
@@ -415,104 +415,104 @@ class WorkerMessageHandler {
       });
     });
 
-    handler.on("GetPageIndex", function (data) {
+    handler.on("GetPageIndex", function(data) {
       const pageRef = Ref.get(data.num, data.gen);
       return pdfManager.ensureCatalog("getPageIndex", [pageRef]);
     });
 
-    handler.on("GetDestinations", function (data) {
+    handler.on("GetDestinations", function(data) {
       return pdfManager.ensureCatalog("destinations");
     });
 
-    handler.on("GetDestination", function (data) {
+    handler.on("GetDestination", function(data) {
       return pdfManager.ensureCatalog("getDestination", [data.id]);
     });
 
-    handler.on("GetPageLabels", function (data) {
+    handler.on("GetPageLabels", function(data) {
       return pdfManager.ensureCatalog("pageLabels");
     });
 
-    handler.on("GetPageLayout", function (data) {
+    handler.on("GetPageLayout", function(data) {
       return pdfManager.ensureCatalog("pageLayout");
     });
 
-    handler.on("GetPageMode", function (data) {
+    handler.on("GetPageMode", function(data) {
       return pdfManager.ensureCatalog("pageMode");
     });
 
-    handler.on("GetViewerPreferences", function (data) {
+    handler.on("GetViewerPreferences", function(data) {
       return pdfManager.ensureCatalog("viewerPreferences");
     });
 
-    handler.on("GetOpenAction", function (data) {
+    handler.on("GetOpenAction", function(data) {
       return pdfManager.ensureCatalog("openAction");
     });
 
-    handler.on("GetAttachments", function (data) {
+    handler.on("GetAttachments", function(data) {
       return pdfManager.ensureCatalog("attachments");
     });
 
-    handler.on("GetDocJSActions", function (data) {
+    handler.on("GetDocJSActions", function(data) {
       return pdfManager.ensureCatalog("jsActions");
     });
 
-    handler.on("GetPageJSActions", function ({ pageIndex }) {
-      return pdfManager.getPage(pageIndex).then(function (page) {
+    handler.on("GetPageJSActions", function({ pageIndex }) {
+      return pdfManager.getPage(pageIndex).then(function(page) {
         return pdfManager.ensure(page, "jsActions");
       });
     });
 
-    handler.on("GetOutline", function (data) {
+    handler.on("GetOutline", function(data) {
       return pdfManager.ensureCatalog("documentOutline");
     });
 
-    handler.on("GetOptionalContentConfig", function (data) {
+    handler.on("GetOptionalContentConfig", function(data) {
       return pdfManager.ensureCatalog("optionalContentConfig");
     });
 
-    handler.on("GetPermissions", function (data) {
+    handler.on("GetPermissions", function(data) {
       return pdfManager.ensureCatalog("permissions");
     });
 
-    handler.on("GetMetadata", function (data) {
+    handler.on("GetMetadata", function(data) {
       return Promise.all([
         pdfManager.ensureDoc("documentInfo"),
         pdfManager.ensureCatalog("metadata"),
       ]);
     });
 
-    handler.on("GetMarkInfo", function (data) {
+    handler.on("GetMarkInfo", function(data) {
       return pdfManager.ensureCatalog("markInfo");
     });
 
-    handler.on("GetData", function (data) {
-      return pdfManager.requestLoadedStream().then(function (stream) {
+    handler.on("GetData", function(data) {
+      return pdfManager.requestLoadedStream().then(function(stream) {
         return stream.bytes;
       });
     });
 
-    handler.on("GetPrimitiveByPath", function (path_str) {
+    handler.on("GetPrimitiveByPath", function(path_str) {
       return getPrim(path_str, pdfManager.pdfDocument);
     });
 
-    handler.on("GetXRefEntries", function (data) {
+    handler.on("GetXRefEntries", function(data) {
       return retrieveXref(pdfManager.pdfDocument);
     });
 
-    handler.on("GetPrimTree", function (request) {
+    handler.on("GetPrimTree", function(request) {
       return getPrimTree(request, pdfManager.pdfDocument);
     });
 
-    handler.on("GetImageData", function (path) {
+    handler.on("GetImageData", function(path) {
       return getImageAsBlob(path, pdfManager.pdfDocument);
     });
 
-    handler.on("GetStreamAsString", function (path) {
+    handler.on("GetStreamAsString", function(path) {
       return getStreamAsString(path, pdfManager.pdfDocument);
     });
 
-    handler.on("GetAnnotations", function ({ pageIndex, intent }) {
-      return pdfManager.getPage(pageIndex).then(function (page) {
+    handler.on("GetAnnotations", function({ pageIndex, intent }) {
+      return pdfManager.getPage(pageIndex).then(function(page) {
         const task = new WorkerTask(`GetAnnotations: page ${pageIndex}`);
         startWorkerTask(task);
 
@@ -529,23 +529,23 @@ class WorkerMessageHandler {
       });
     });
 
-    handler.on("GetFieldObjects", function (data) {
+    handler.on("GetFieldObjects", function(data) {
       return pdfManager
         .ensureDoc("fieldObjects")
         .then(fieldObjects => fieldObjects?.allFields || null);
     });
 
-    handler.on("HasJSActions", function (data) {
+    handler.on("HasJSActions", function(data) {
       return pdfManager.ensureDoc("hasJSActions");
     });
 
-    handler.on("GetCalculationOrderIds", function (data) {
+    handler.on("GetCalculationOrderIds", function(data) {
       return pdfManager.ensureDoc("calculationOrderIds");
     });
 
     handler.on(
       "SaveDocument",
-      async function ({ isPureXfa, numPages, annotationStorage, filename }) {
+      async function({ isPureXfa, numPages, annotationStorage, filename }) {
         const globalPromises = [
           pdfManager.requestLoadedStream(),
           pdfManager.ensureCatalog("acroForm"),
@@ -615,7 +615,7 @@ class WorkerMessageHandler {
                     imagePromises,
                     changes
                   )
-                  .finally(function () {
+                  .finally(function() {
                     finishWorkerTask(task);
                   });
               })
@@ -652,13 +652,13 @@ class WorkerMessageHandler {
         } else {
           for (let pageIndex = 0; pageIndex < numPages; pageIndex++) {
             promises.push(
-              pdfManager.getPage(pageIndex).then(function (page) {
+              pdfManager.getPage(pageIndex).then(function(page) {
                 const task = new WorkerTask(`Save: page ${pageIndex}`);
                 startWorkerTask(task);
 
                 return page
                   .save(handler, task, annotationStorage, changes)
-                  .finally(function () {
+                  .finally(function() {
                     finishWorkerTask(task);
                   });
               })
@@ -748,6 +748,31 @@ class WorkerMessageHandler {
       }
     );
 
+    handler.on("StreamContents", function(data, sink) {
+      const pageIndex = data.pageIndex;
+      pdfManager.getPage(pageIndex).then(function(page) {
+        page.getContentStream().then(stream => {
+          let byte;
+          let string = "";
+          while ((byte = stream.getByte()) !== -1) {
+            string += String.fromCharCode(byte);
+          }
+          sink.enqueue(string, string.length);
+          sink.close();
+        });
+      });
+    });
+
+    handler.on("UpdateContents", function (data) {
+      return new Promise(resolve => {
+        const pageIndex = data.pageIndex;
+        pdfManager.getPage(pageIndex).then(function (page) {
+          page.setContents(data.value);
+          resolve();
+        });
+      });
+    });
+
     handler.on("GetOperatorList", function (data, sink) {
       const pageIndex = data.pageIndex;
       pdfManager.getPage(pageIndex).then(function (page) {
@@ -767,6 +792,7 @@ class WorkerMessageHandler {
             cacheKey: data.cacheKey,
             annotationStorage: data.annotationStorage,
             modifiedIds: data.modifiedIds,
+            contentOverride: data.contentOverride,
           })
           .then(
             function (operatorListInfo) {

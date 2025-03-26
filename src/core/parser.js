@@ -59,12 +59,7 @@ function getInlineImageCacheKey(bytes) {
 }
 
 class Parser {
-  constructor({
-    lexer,
-    xref,
-    allowStreams = false,
-    recoveryMode = false,
-  }) {
+  constructor({ lexer, xref, allowStreams = false, recoveryMode = false }) {
     this.lexer = lexer;
     this.xref = xref;
     this.allowStreams = allowStreams;
@@ -75,8 +70,8 @@ class Parser {
   }
 
   refill() {
-    const [buf1, start1, end1] = this.lexer.getObj(true);
-    const [buf2, start2, end2] = this.lexer.getObj(true);
+    const [buf1, start1, end1] = this.lexer.getObjWithRange();
+    const [buf2, start2, end2] = this.lexer.getObjWithRange();
     this.buf1 = buf1;
     this.range1 = [start1, end1];
     this.buf2 = buf2;
@@ -87,12 +82,14 @@ class Parser {
     if (this.buf2 instanceof Cmd && this.buf2.cmd === "ID") {
       this.buf1 = this.buf2;
       this.buf2 = null;
+      this.lastEnd = this.range1[1];
       this.range1 = this.range2;
       this.range2 = null;
     } else {
       this.buf1 = this.buf2;
+      this.lastEnd = this.range1[1];
       this.range1 = this.range2;
-      const [buf2, start2, end2] = this.lexer.getObj(true);
+      const [buf2, start2, end2] = this.lexer.getObjWithRange();
       this.buf2 = buf2;
       this.range2 = [start2, end2];
     }
@@ -114,6 +111,10 @@ class Parser {
 
   getPosition() {
     return this.range1 ? this.range1[0] : 0;
+  }
+
+  getEnd() {
+    return this.lastEnd ?? 0;
   }
 
   getObjWithRange(cipherTransform = null) {
@@ -1229,14 +1230,18 @@ class Lexer {
   }
 
   getObjWithRange() {
-    // at the start of getObj() the stream has stepped beyond currentChar by one
-    const start = this.stream.pos - 1;
+    const ch = this._skipWhitespaceAndComments();
+    if (ch === EOF) {
+      return [ch, -1, -1];
+    }
+    // currentChar is always at pos - 1
+    const start = Math.max(this.stream.pos - 1, 0);
     const obj = this.getObj();
-    const end = this.stream.pos;
+    const end = this.stream.pos - 1;
     return [obj, start, end];
   }
 
-  getObj(withRange = false) {
+  _skipWhitespaceAndComments() {
     // Skip whitespace and comments.
     let comment = false;
     let ch = this.currentChar;
@@ -1255,16 +1260,14 @@ class Lexer {
       }
       ch = this.nextChar();
     }
-    const start = this.stream.pos - 1;
-    const obj = this.extracted(ch);
-    const end = this.stream.pos - 1;
-    if (withRange) {
-      return [start, obj, end];
-    }
-    return obj;
+    return ch;
   }
 
-  extracted(ch) {
+  getObj() {
+    let ch = this._skipWhitespaceAndComments();
+    if (ch === EOF) {
+      return ch;
+    }
     // Start reading a token.
     switch (ch | 0) {
       case 0x30: // '0'
