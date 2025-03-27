@@ -1,4 +1,3 @@
-import { EvaluatorPreprocessor } from "../../src/core/evaluator.js";
 import {
   getImageAsBlob,
   getPrim,
@@ -8,8 +7,10 @@ import {
 } from "../../src/core/obj_walker.js";
 import { Lexer, Parser } from "../../src/core/parser.js";
 import { EOF } from "../../src/core/primitives.js";
+import { EvaluatorPreprocessor } from "../../src/core/evaluator.js";
 import fs from "fs";
 import { PDFDocument } from "../../src/core/document.js";
+import { retrieveXref } from "../../src/core/retrieve_xref.js";
 import { Stream } from "../../src/core/stream.js";
 
 const filePath =
@@ -63,12 +64,12 @@ async function parse(doc) {
   const bytes = stream.getBytes();
   const classes = new Set();
   for (const o of objs) {
-    // console.log(o[0].constructor.name);
+    console.log(o[0].constructor.name);
     classes.add(o[0].constructor.name);
     const lexemmeBytes = bytes.slice(o[1], o[2]);
-    // console.log(bytesToString(lexemmeBytes));
+    console.log(bytesToString(lexemmeBytes));
   }
-  // console.log("unique classes", classes);
+  console.log("unique classes", classes);
   [stream] = await getPrimitive(path, doc);
   const preprocessor = new EvaluatorPreprocessor(stream, doc.xref);
   const operation = {};
@@ -78,67 +79,46 @@ async function parse(doc) {
     const fn = operation.fn;
     const range = operation.range;
     const op = bytesToString(bytes.slice(range[0], range[1]));
-    // console.log(args, fn);
-    // console.log(`----------------- ${range} -------------------`);
+    console.log(args, fn);
+    console.log(`----------------- ${range} -------------------`);
     console.log(`${fn}: ${op}`);
-    // console.log(`---------------------------------------------`);
+    console.log(`---------------------------------------------`);
   }
-  // console.time("xref");
-  // let table = await retrieveXref(doc);
-  // console.timeEnd("xref");
-  // console.time("get prim");
-  // const prim = await getPrim("/Trailer/Root/Names/Dests/Names/1", doc);
-  // console.timeEnd("get prim");
-  // console.log(prim);
-  // const request = {
-  //   key: "Page2",
-  //   children: [
-  //     { key: "CropBox" },
-  //     { key: "Contents", children: [{ key: "1" , children: [{ key: "Length" }]}] },
-  //     {
-  //       key: "Resources",
-  //       children: [{ key: "ProcSet" }],
-  //     },
-  //   ],
-  // };
-  // console.time("get tree");
-  // const tree = await getPrimTree([request], doc);
-  // console.timeEnd("get tree");
-  // logTree(tree);
-  // console.time("string");
-  // const string = await getStreamAsString("/Page2/Contents/0/Data", doc);
-  // console.timeEnd("string");
-  // console.log(string);
-  // console.time("image");
-  // // const image = await getStreamAsImage("/Page2/Contents/2/Data", doc);
-  // const blob = await getImageAsBlob(
-  //   "/Page2/Resources/XObject/Im0/Data",
-  //   doc
-  // );
-  // console.timeEnd("image");
-  // console.log(blob);
-  // saveBlobToFile(blob, "image.png");
-}
-
-async function saveBlobToFile(blob, imagePath) {
-  const buffer = await blobToBuffer(blob);
-
-  fs.writeFile(imagePath, buffer, err => {
-    if (err) {
-      console.error("Error saving file:", err);
-    } else {
-      console.log("File saved successfully!");
-    }
-  });
-}
-
-function blobToBuffer(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(Buffer.from(reader.result));
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(blob);
-  });
+  console.time("xref");
+  const table = await retrieveXref(doc);
+  console.timeEnd("xref");
+  console.log(table.size);
+  console.time("get prim");
+  const prim = await getPrim("/Trailer/Root/Names/Dests/Names/1", doc);
+  console.timeEnd("get prim");
+  console.log(prim);
+  const request = {
+    key: "Page2",
+    children: [
+      { key: "CropBox" },
+      {
+        key: "Contents",
+        children: [{ key: "1", children: [{ key: "Length" }] }],
+      },
+      {
+        key: "Resources",
+        children: [{ key: "ProcSet" }],
+      },
+    ],
+  };
+  console.time("get tree");
+  const tree = await getPrimTree([request], doc);
+  console.timeEnd("get tree");
+  logTree(tree);
+  console.time("string");
+  const string = await getStreamAsString("/Page2/Contents/0/Data", doc);
+  console.timeEnd("string");
+  console.log(string);
+  console.time("image");
+  // const image = await getStreamAsImage("/Page2/Contents/2/Data", doc);
+  const blob = await getImageAsBlob("/Page2/Resources/XObject/Im0/Data", doc);
+  console.timeEnd("image");
+  console.log(blob);
 }
 
 function logTree(tree) {
@@ -150,10 +130,10 @@ function logTree(tree) {
       str += node.expanded ? "v " : "> ";
     }
     str += node.key + " | " + node.ptype + " | ";
-    // if (node.sub_type !== "-") {
-    //   str += node.sub_type + " | ";
-    // }
-    // str += node.value;
+    if (node.sub_type !== "-") {
+      str += node.sub_type + " | ";
+    }
+    str += node.value;
     str += node.trace.map(t => t.key).join(", ");
     console.log(str);
   }

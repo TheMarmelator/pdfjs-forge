@@ -11,7 +11,7 @@ const STANDARD_FONT_DATA_URL =
 
 // Loading file from file system into typed array.
 const pdfPath =
-  process.argv[2] || "C:\\Users\\kj131\\pdf-forge\\test_pdfs\\ISO_32000-2_2020(en).pdf";
+  "C:\\Users\\kj131\\pdf-forge\\test_pdfs\\ISO_32000-2_2020(en).pdf";
 const data = new Uint8Array(fs.readFileSync(pdfPath));
 
 // Load the PDF file.
@@ -27,7 +27,7 @@ async function test(loading) {
     const pdfDocument = await loading.promise;
     console.log("# PDF document loaded.");
     const page = await pdfDocument.getPage(4);
-    printOpList(page);
+    await printOpList(page);
     console.time("contents");
     const contents = await page.getContents();
     console.timeEnd("contents");
@@ -54,7 +54,7 @@ async function test(loading) {
 async function printOpList(page) {
   const contents = await page.getContents();
   const opList = await page.getOperatorList();
-  // console.log(opList);
+  console.log(opList);
   const ops = [];
   for (let i = 0; i < opList.rangeArray.length; i++) {
     const range = opList.rangeArray[i];

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* Copyright 2012 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,21 +17,6 @@
 /**
  * @module pdfjsLib
  */
-
-import { DOMCMapReaderFactory } from "display-cmap_reader_factory";
-import { PDFFetchStream } from "display-fetch_stream";
-import { PDFNetworkStream } from "display-network";
-import { PDFNodeStream } from "display-node_stream";
-import {
-  NodeCanvasFactory,
-  NodeCMapReaderFactory,
-  NodeFilterFactory,
-  NodeStandardFontDataFactory,
-  NodeWasmFactory,
-} from "display-node_utils";
-import { DOMStandardFontDataFactory } from "display-standard_fontdata_factory";
-import { DOMWasmFactory } from "display-wasm_factory";
-import { MessageHandler, wrapReason } from "../shared/message_handler.js";
 import {
   AbortException,
   AnnotationMode,
@@ -52,8 +38,7 @@ import {
   PrintAnnotationStorage,
   SerializableEmpty,
 } from "./annotation_storage.js";
-import { CanvasGraphics } from "./canvas.js";
-import { DOMCanvasFactory } from "./canvas_factory.js";
+import { FontFaceObject, FontLoader } from "./font_loader.js";
 import {
   isDataScheme,
   isValidFetchUrl,
@@ -61,14 +46,33 @@ import {
   RenderingCancelledException,
   StatTimer,
 } from "./display_utils.js";
+import { MessageHandler, wrapReason } from "../shared/message_handler.js";
+import {
+  NodeCanvasFactory,
+  NodeCMapReaderFactory,
+  NodeFilterFactory,
+  NodeStandardFontDataFactory,
+  NodeWasmFactory,
+} from "display-node_utils";
+// eslint-disable-next-line no-unused-vars
+import { PrimitiveModel, TreeViewModel } from "../core/obj_walker.js";
+import { CanvasGraphics } from "./canvas.js";
+import { DOMCanvasFactory } from "./canvas_factory.js";
+import { DOMCMapReaderFactory } from "display-cmap_reader_factory";
 import { DOMFilterFactory } from "./filter_factory.js";
-import { FontFaceObject, FontLoader } from "./font_loader.js";
+import { DOMStandardFontDataFactory } from "display-standard_fontdata_factory";
+import { DOMWasmFactory } from "display-wasm_factory";
+import { GlobalWorkerOptions } from "./worker_options.js";
 import { Metadata } from "./metadata.js";
 import { OptionalContentConfig } from "./optional_content_config.js";
-import { TextLayer } from "./text_layer.js";
 import { PDFDataTransportStream } from "./transport_stream.js";
-import { GlobalWorkerOptions } from "./worker_options.js";
+import { PDFFetchStream } from "display-fetch_stream";
+import { PDFNetworkStream } from "display-network";
+import { PDFNodeStream } from "display-node_stream";
+import { TextLayer } from "./text_layer.js";
 import { XfaText } from "./xfa_text.js";
+// eslint-disable-next-line no-unused-vars
+import { XRefTable } from "../core/retrieve_xref.js";
 
 const DEFAULT_RANGE_CHUNK_SIZE = 65536; // 2^16 = 65536
 const RENDERING_CANCELLED_TIMEOUT = 100; // ms
@@ -1361,6 +1365,7 @@ class PDFDocumentProxy {
  *   The default value is `AnnotationMode.ENABLE`.
  * @property {PrintAnnotationStorage} [printAnnotationStorage]
  * @property {boolean} [isEditing] - Render the page in editing mode.
+ * @property {string} [contentOverride] - Override the used content stream.
  */
 
 /**

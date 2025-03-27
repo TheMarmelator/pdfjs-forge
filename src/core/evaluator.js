@@ -1002,7 +1002,8 @@ class PartialEvaluator {
     patternDict,
     operatorList,
     task,
-    localTilingPatternCache
+    localTilingPatternCache,
+    range
   ) {
     // Create an IR of the pattern code.
     const tilingOpList = new OperatorList();
@@ -1611,7 +1612,8 @@ class PartialEvaluator {
             dict,
             operatorList,
             task,
-            localTilingPatternCache
+            localTilingPatternCache,
+            range
           );
         } else if (typeNum === PatternType.SHADING) {
           const shading = dict.get("Shading");
