@@ -54,7 +54,6 @@ import {
   NodeStandardFontDataFactory,
   NodeWasmFactory,
 } from "display-node_utils";
-// eslint-disable-next-line no-unused-vars
 import { PrimitiveModel, TreeViewModel } from "../core/obj_walker.js";
 import { CanvasGraphics } from "./canvas.js";
 import { DOMCanvasFactory } from "./canvas_factory.js";
@@ -71,7 +70,6 @@ import { PDFNetworkStream } from "display-network";
 import { PDFNodeStream } from "display-node_stream";
 import { TextLayer } from "./text_layer.js";
 import { XfaText } from "./xfa_text.js";
-// eslint-disable-next-line no-unused-vars
 import { XRefTable } from "../core/retrieve_xref.js";
 
 const DEFAULT_RANGE_CHUNK_SIZE = 65536; // 2^16 = 65536
