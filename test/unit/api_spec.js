@@ -805,7 +805,7 @@ describe("api", function () {
           [0, 9.75, 0.5, 9.75],
         ],
         null,
-        [255, 263, 264, 274]
+        [255, 263, 264, 274],
       ]);
       expect(opList.lastChunk).toEqual(true);
 
