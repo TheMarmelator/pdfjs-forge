@@ -1,5 +1,5 @@
 import fs from "fs";
-// eslint-disable import/no-unresolved
+// eslint-disable-next-line import/no-unresolved
 import { getDocument } from "../../build/dist/build/pdf.mjs";
 
 // Some PDFs need external cmaps.
