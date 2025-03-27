@@ -3603,6 +3603,9 @@ class InternalRenderTask {
 
         this.callback();
       }
+      if (this.stepper) {
+        this.stepper.finished = true;
+      }
     }
   }
 }
