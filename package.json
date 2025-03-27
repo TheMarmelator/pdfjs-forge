@@ -61,6 +61,9 @@
     "type": "git",
     "url": "git@github.com:TheMarmelator/pdfjs-forge.git"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "engines": {
     "node": ">=20"
   },
