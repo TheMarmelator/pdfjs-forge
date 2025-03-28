@@ -945,6 +945,10 @@ class CanvasGraphics {
       return i;
     }
 
+    if (stepper) {
+      stepper.canvasGraphics = this;
+    }
+
     const chunkOperations =
       argsArrayLen - i > EXECUTION_STEPS &&
       typeof continueCallback === "function";
@@ -956,9 +960,12 @@ class CanvasGraphics {
     let fnId;
 
     while (true) {
-      if (stepper !== undefined && i === stepper.nextBreakPoint) {
-        stepper.breakIt(i, continueCallback);
-        return i;
+      if (stepper !== undefined) {
+        stepper.ctm = getCurrentTransform(this.ctx);
+        if (i === stepper.nextBreakPoint) {
+          stepper.breakIt(i, continueCallback);
+          return i;
+        }
       }
 
       fnId = fnArray[i];

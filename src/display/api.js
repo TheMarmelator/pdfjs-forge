@@ -3505,7 +3505,7 @@ class InternalRenderTask {
       InternalRenderTask.#canvasInUse.add(this._canvas);
     }
 
-    if (this._pdfBug && globalThis.StepperManager?.enabled) {
+    if (globalThis.StepperManager?.enabled) {
       this.stepper = globalThis.StepperManager.create(this._pageIndex);
       this.stepper.init(this.operatorList);
       this.stepper.nextBreakPoint = this.stepper.getNextBreakPoint();
